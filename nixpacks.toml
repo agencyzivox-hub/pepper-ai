@@ -2,6 +2,8 @@
 nixPkgs = [
   "python311",
   "python311Packages.pip",
+  "python311Packages.setuptools",
+  "python311Packages.wheel",
   "ffmpeg",
   "libGL",
   "libGLU",
@@ -14,7 +16,7 @@ nixPkgs = [
 
 [phases.install]
 cmds = [
-  "pip install -r requirements.txt"
+  "pip install --no-cache-dir --prefix=$NIXPACKS_PATH -r requirements.txt"
 ]
 
 [start]

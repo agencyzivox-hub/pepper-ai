@@ -10,3 +10,4 @@ node_modules/
 static/thumbnails/
 *.log
 .DS_Store
+venv/
