@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% block title %}Channels{% endblock %}
+{% block page_title %}<i class="fab fa-youtube"></i> YouTube Channels{% endblock %}
+
+{% block content %}
+<div class="page-actions-bar">
+  <p class="page-desc">
+    <i class="fab fa-google"></i>
+    Your YouTube account (<strong>{{ current_user.email }}</strong>) is connected.
+    Videos will publish to your YouTube channel automatically.
+  </p>
+  <button class="btn btn-primary" onclick="openModal('createChannelModal')">
+    <i class="fas fa-plus"></i> Add Channel Config
+  </button>
+</div>
+
+<div class="channels-grid">
+  <!-- Connected Account Card -->
+  <div class="card channel-card yt-connected">
+    <div class="channel-card-top">
+      <div class="channel-icon" style="background:rgba(255,80,80,0.15)">
+        <i class="fab fa-youtube" style="color:#ff5050;font-size:2rem"></i>
+      </div>
+      <div class="channel-info">
+        <div class="channel-name">Your YouTube Account</div>
+        <div class="channel-email">{{ current_user.email }}</div>
+      </div>
+      <span class="status-pill status-active">Connected</span>
+    </div>
+    <div class="channel-card-body">
+      <p class="channel-desc">
+        All your uploaded videos will be published to the YouTube channel linked to this Google account.
+        Each user's content goes to their own channel — no mixing.
+      </p>
+      <div class="channel-meta-row">
+        <div class="cm-item">
+          <i class="fas fa-key"></i>
+          <span>OAuth Token: {% if current_user.yt_access_token %}<strong style="color:#50c878">Active</strong>{% else %}<strong style="color:#ff8800">Missing — Re-login</strong>{% endif %}</span>
+        </div>
+        {% if current_user.yt_token_expiry %}
+        <div class="cm-item">
+          <i class="fas fa-clock"></i>
+          <span>Expires: {{ current_user.yt_token_expiry.strftime('%b %d, %H:%M') }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% if not current_user.yt_access_token %}
+    <div class="channel-card-footer">
+      <a href="{{ url_for('auth_google') }}" class="btn btn-primary btn-sm">
+        <i class="fab fa-google"></i> Re-authorize YouTube Access
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Channel Configs -->
+  {% for ch in channels %}
+  <div class="card channel-card">
+    <div class="channel-card-top">
+      <div class="channel-icon" style="background:rgba(100,150,255,0.1)">
+        <i class="fas fa-tv" style="color:#6496ff;font-size:1.5rem"></i>
+      </div>
+      <div class="channel-info">
+        <div class="channel-name">{{ ch.name }}</div>
+        <div class="channel-email">{{ ch.network }} • {{ ch.language }}</div>
+      </div>
+      <span class="status-pill status-active">Active</span>
+    </div>
+    <div class="channel-card-body">
+      <div class="channel-meta-row">
+        <div class="cm-item"><i class="fas fa-broadcast-tower"></i><span>{{ ch.network }}</span></div>
+        <div class="cm-item"><i class="fas fa-language"></i><span>{{ ch.language }}</span></div>
+        <div class="cm-item"><i class="fas fa-film"></i><span>{{ ch.genre }}</span></div>
+        <div class="cm-item"><i class="fas fa-cut"></i><span>{{ ch.clips|length }} clips</span></div>
+      </div>
+      {% if ch.description %}
+        <p class="channel-desc">{{ ch.description }}</p>
+      {% endif %}
+    </div>
+    <div class="channel-card-footer">
+      <button class="btn btn-sm btn-outline btn-danger"
+              onclick="deleteChannel({{ ch.id }}, '{{ ch.name }}')">
+        <i class="fas fa-trash"></i> Delete
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if not channels %}
+  <div class="card empty-card">
+    <div class="empty-state">
+      <i class="fab fa-youtube"></i>
+      <p>No channel configurations yet.<br/>Add one to organize your content by network/language.</p>
+      <button class="btn btn-primary" onclick="openModal('createChannelModal')">
+        <i class="fas fa-plus"></i> Add Channel Config
+      </button>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Create Channel Modal -->
+<div class="modal-overlay" id="createChannelModal" onclick="if(event.target===this)closeModal('createChannelModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fas fa-plus"></i> Add Channel Configuration</h3>
+      <button class="modal-close" onclick="closeModal('createChannelModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Channel Name</label>
+        <input type="text" id="chName" placeholder="e.g. Zee Drama Hindi" class="form-control"/>
+      </div>
+      <div class="form-row form-row-3">
+        <div class="form-group">
+          <label>Network</label>
+          <select id="chNetwork" class="form-control">
+            <option value="ZEE">Zee TV</option>
+            <option value="SUN">Sun TV</option>
+            <option value="ZEE_CINEMA">Zee Cinema</option>
+            <option value="SUN_MUSIC">Sun Music</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Language</label>
+          <select id="chLanguage" class="form-control">
+            <option>Hindi</option>
+            <option>Tamil</option>
+            <option>Telugu</option>
+            <option>Kannada</option>
+            <option>Malayalam</option>
+            <option>Bengali</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Genre</label>
+          <select id="chGenre" class="form-control">
+            <option>Drama</option>
+            <option>Action</option>
+            <option>Comedy</option>
+            <option>Music</option>
+            <option>Romance</option>
+            <option>Thriller</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea id="chDesc" class="form-control" rows="3"
+                  placeholder="Describe this channel configuration..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('createChannelModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createChannel()">
+        <i class="fas fa-plus"></i> Create
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function createChannel() {
+  const name = document.getElementById('chName').value.trim();
+  if (!name) { showToast('Please enter a channel name', 'error'); return; }
+  try {
+    const r = await fetch('/api/channels', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name, network: document.getElementById('chNetwork').value,
+        language: document.getElementById('chLanguage').value,
+        genre: document.getElementById('chGenre').value,
+        description: document.getElementById('chDesc').value
+      })
+    });
+    const d = await r.json();
+    if (d.success) { showToast('Channel created!', 'success'); setTimeout(()=>location.reload(), 800); }
+    else showToast(d.error || 'Failed', 'error');
+  } catch(e) { showToast('Network error', 'error'); }
+}
+
+async function deleteChannel(id, name) {
+  if (!confirm(`Delete "${name}"?`)) return;
+  try {
+    const r = await fetch(`/api/channels/${id}`, {method:'DELETE'});
+    const d = await r.json();
+    if (d.success) { showToast('Deleted', 'success'); setTimeout(()=>location.reload(), 600); }
+  } catch(e) { showToast('Error', 'error'); }
+}
+</script>
+{% endblock %}

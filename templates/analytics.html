@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}<i class="fas fa-chart-line"></i> Analytics{% endblock %}
+
+{% block content %}
+<div class="analytics-page">
+
+  <!-- Top Metrics -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(255,80,80,0.15);color:#ff5050">
+        <i class="fab fa-youtube"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ clips|length }}</div>
+        <div class="kpi-label">Published Videos</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(100,150,255,0.15);color:#6496ff">
+        <i class="fas fa-eye"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ '{:,}'.format(total_views) }}</div>
+        <div class="kpi-label">Total Views</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(255,165,0,0.15);color:#ffa500">
+        <i class="fas fa-heart"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ '{:,}'.format(total_likes) }}</div>
+        <div class="kpi-label">Total Likes</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(80,200,120,0.15);color:#50c878">
+        <i class="fas fa-percentage"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">
+          {% if total_views > 0 and total_likes > 0 %}
+            {{ '%.1f'|format(total_likes / total_views * 100) }}%
+          {% else %}—{% endif %}
+        </div>
+        <div class="kpi-label">Engagement Rate</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="two-col-layout">
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-chart-bar"></i> Clips by Type</h3></div>
+      {% if type_counts %}
+        <div class="chart-wrap">
+          <canvas id="typeChart"></canvas>
+        </div>
+      {% else %}
+        <div class="empty-state"><i class="fas fa-chart-bar"></i><p>No data yet</p></div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3><i class="fas fa-chart-pie"></i> Performance Overview</h3></div>
+      {% if clips %}
+        <div class="chart-wrap">
+          <canvas id="perfChart"></canvas>
+        </div>
+      {% else %}
+        <div class="empty-state"><i class="fas fa-chart-pie"></i><p>No published videos yet</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Published Videos Table -->
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-list"></i> Published Videos</h3>
+    </div>
+    {% if clips %}
+    <div class="analytics-table-wrap">
+      <table class="pipeline-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Published</th>
+            <th>Views</th>
+            <th>Likes</th>
+            <th>Duration</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for clip in clips %}
+          <tr>
+            <td>
+              <div class="row-title">{{ (clip.final_title or clip.ai_title or 'Untitled')[:50] }}</div>
+            </td>
+            <td><span class="clip-type-badge badge-{{ clip.clip_type }}">{{ clip.clip_type }}</span></td>
+            <td>{{ clip.published_at.strftime('%b %d, %Y') if clip.published_at else '—' }}</td>
+            <td>{{ '{:,}'.format(clip.yt_views or 0) }}</td>
+            <td>{{ '{:,}'.format(clip.yt_likes or 0) }}</td>
+            <td>{{ '%.0f'|format(clip.duration or 0) }}s</td>
+            <td>
+              {% if clip.yt_url %}
+                <a href="{{ clip.yt_url }}" target="_blank" class="yt-link">
+                  <i class="fab fa-youtube"></i> View
+                </a>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fab fa-youtube"></i>
+        <p>No published videos yet.<br/>
+        <a href="{{ url_for('publish') }}">Publish your first clip →</a></p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if type_counts %}
+const typeCtx = document.getElementById('typeChart').getContext('2d');
+new Chart(typeCtx, {
+  type: 'bar',
+  data: {
+    labels: {{ type_counts.keys() | list | tojson }},
+    datasets: [{
+      label: 'Clips Published',
+      data: {{ type_counts.values() | list | tojson }},
+      backgroundColor: ['rgba(255,80,80,0.7)', 'rgba(100,150,255,0.7)', 'rgba(255,165,0,0.7)', 'rgba(80,200,120,0.7)'],
+      borderColor: ['#ff5050','#6496ff','#ffa500','#50c878'],
+      borderWidth: 2, borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }
+    }
+  }
+});
+{% endif %}
+
+{% if clips %}
+const perfCtx = document.getElementById('perfChart').getContext('2d');
+new Chart(perfCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Views', 'Likes'],
+    datasets: [{
+      data: [{{ total_views }}, {{ total_likes }}],
+      backgroundColor: ['rgba(255,80,80,0.7)', 'rgba(100,150,255,0.7)'],
+      borderColor: ['#ff5050','#6496ff'],
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    cutout: '65%',
+    plugins: {
+      legend: { labels: { color: 'rgba(255,255,255,0.7)' } }
+    }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

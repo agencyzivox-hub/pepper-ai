@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Review{% endblock %}
+{% block page_title %}<i class="fas fa-check-double"></i> Review Queue{% endblock %}
+
+{% block content %}
+<div class="review-page">
+
+  {% if clips %}
+  <div class="review-header-bar">
+    <span class="review-count">{{ clips|length }} clips awaiting review</span>
+    <div class="review-filters">
+      <button class="filter-btn active" onclick="filterClips('all', this)">All</button>
+      <button class="filter-btn" onclick="filterClips('shorts', this)">Shorts</button>
+      <button class="filter-btn" onclick="filterClips('medium', this)">Medium</button>
+      <button class="filter-btn" onclick="filterClips('longform', this)">Longform</button>
+    </div>
+  </div>
+
+  <div class="clips-grid" id="clipsGrid">
+    {% for clip in clips %}
+    <div class="clip-card" data-type="{{ clip.clip_type }}" data-id="{{ clip.id }}">
+      <!-- Thumbnail -->
+      <div class="clip-thumbnail" onclick="openReview({{ clip.id }})">
+        {% set thumbs = clip.get_thumbnail_variants() %}
+        {% if thumbs %}
+          <img src="/thumbnails/{{ thumbs[0].split('/')[-1] }}"
+               alt="thumbnail" class="thumb-img"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div class="thumb-fallback" style="display:none">
+            <i class="fas fa-image"></i>
+          </div>
+        {% else %}
+          <div class="thumb-fallback">
+            <i class="fas fa-image"></i>
+          </div>
+        {% endif %}
+        <div class="clip-type-badge badge-{{ clip.clip_type }}">{{ clip.clip_type.upper() }}</div>
+        <div class="clip-duration-badge">{{ '%.0f'|format(clip.duration or 0) }}s</div>
+      </div>
+
+      <!-- Clip Info -->
+      <div class="clip-info">
+        <div class="clip-title">{{ clip.ai_title or 'Untitled Clip' }}</div>
+
+        <!-- QA Score -->
+        <div class="qa-score-row">
+          <div class="qa-score-bar">
+            <div class="qa-score-fill {% if clip.qa_total_score >= 80 %}qa-excellent{% elif clip.qa_total_score >= 60 %}qa-good{% else %}qa-poor{% endif %}"
+                 style="width:{{ clip.qa_total_score or 0 }}%"></div>
+          </div>
+          <span class="qa-score-num">{{ clip.qa_total_score or 0 }}/100</span>
+        </div>
+
+        <div class="clip-tags">
+          {% for tag in clip.get_tags()[:4] %}
+            <span class="mini-tag">{{ tag }}</span>
+          {% endfor %}
+        </div>
+
+        <div class="clip-actions">
+          <button class="btn btn-sm btn-outline" onclick="openReview({{ clip.id }})">
+            <i class="fas fa-eye"></i> Review
+          </button>
+          <button class="btn btn-sm btn-success" onclick="quickApprove({{ clip.id }}, this)">
+            <i class="fas fa-check"></i> Approve
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="quickReject({{ clip.id }}, this)">
+            <i class="fas fa-times"></i> Reject
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+    <div class="card">
+      <div class="empty-state large">
+        <i class="fas fa-check-circle" style="color:#50c878;font-size:3rem"></i>
+        <h2>All Clear!</h2>
+        <p>No clips waiting for review. Upload a video to generate clips.</p>
+        <a href="{{ url_for('ingest') }}" class="btn btn-primary">
+          <i class="fas fa-upload"></i> Upload Video
+        </a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Review Modal -->
+<div class="modal-overlay" id="reviewModal" onclick="if(event.target===this)closeModal('reviewModal')">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <h3><i class="fas fa-edit"></i> Review Clip</h3>
+      <button class="modal-close" onclick="closeModal('reviewModal')">&times;</button>
+    </div>
+    <div class="modal-body review-modal-body" id="reviewModalBody">
+      <div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+    </div>
+    <div class="modal-footer" id="reviewModalFooter" style="display:none">
+      <div class="footer-left">
+        <button class="btn btn-danger" id="rejectBtn" onclick="submitReject()">
+          <i class="fas fa-times"></i> Reject
+        </button>
+        <button class="btn btn-outline" onclick="submitRegen()">
+          <i class="fas fa-robot"></i> Re-generate Metadata
+        </button>
+      </div>
+      <div class="footer-right">
+        <button class="btn btn-outline" onclick="closeModal('reviewModal')">Cancel</button>
+        <button class="btn btn-primary" id="approveBtn" onclick="submitApprove()">
+          <i class="fas fa-check"></i> Approve & Move to Publish
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/review.js') }}"></script>
+<script>
+function filterClips(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.clip-card').forEach(c => {
+    c.style.display = (type === 'all' || c.dataset.type === type) ? '' : 'none';
+  });
+}
+
+async function quickApprove(clipId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const r = await fetch(`/api/clip/${clipId}/approve`, {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d = await r.json();
+    if (d.success) {
+      showToast('Clip approved!', 'success');
+      document.querySelector(`[data-id="${clipId}"]`).remove();
+    }
+  } catch(e) { showToast('Error', 'error'); btn.disabled = false; }
+}
+
+async function quickReject(clipId, btn) {
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/clip/${clipId}/reject`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes:'Quick rejected'})});
+    const d = await r.json();
+    if (d.success) {
+      showToast('Clip rejected', 'info');
+      document.querySelector(`[data-id="${clipId}"]`).remove();
+    }
+  } catch(e) { showToast('Error', 'error'); btn.disabled = false; }
+}
+</script>
+{% endblock %}

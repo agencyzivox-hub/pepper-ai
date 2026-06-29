@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block title %}Ingest Content{% endblock %}
+{% block page_title %}<i class="fas fa-upload"></i> Ingest Content{% endblock %}
+
+{% block content %}
+<div class="two-col-layout">
+
+  <!-- Upload Panel -->
+  <section class="card upload-panel">
+    <div class="card-header">
+      <h3><i class="fas fa-cloud-upload-alt"></i> Upload New Video</h3>
+    </div>
+
+    <div class="upload-drop-zone" id="dropZone">
+      <div class="drop-icon"><i class="fas fa-film"></i></div>
+      <div class="drop-title">Drag & drop video here</div>
+      <div class="drop-sub">or click to browse • MP4, MOV, MKV, AVI, WEBM • Up to 10GB</div>
+      <input type="file" id="videoInput" accept="video/*" hidden/>
+      <button class="btn btn-outline mt-3" onclick="document.getElementById('videoInput').click()">
+        <i class="fas fa-folder-open"></i> Browse Files
+      </button>
+    </div>
+
+    <!-- Upload Form -->
+    <form id="uploadForm" style="display:none" class="upload-form">
+      <div class="selected-file-info" id="fileInfo"></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Video Title</label>
+          <input type="text" id="titleInput" placeholder="Enter video title" class="form-control" maxlength="200"/>
+        </div>
+      </div>
+
+      <div class="form-row form-row-3">
+        <div class="form-group">
+          <label>Network</label>
+          <select id="networkInput" class="form-control">
+            <option value="ZEE">Zee TV</option>
+            <option value="SUN">Sun TV</option>
+            <option value="ZEE_CINEMA">Zee Cinema</option>
+            <option value="SUN_MUSIC">Sun Music</option>
+            <option value="ZEE_TELUGU">Zee Telugu</option>
+            <option value="ZEE_KANNADA">Zee Kannada</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Language</label>
+          <select id="languageInput" class="form-control">
+            <option value="Hindi">Hindi</option>
+            <option value="Tamil">Tamil</option>
+            <option value="Telugu">Telugu</option>
+            <option value="Kannada">Kannada</option>
+            <option value="Malayalam">Malayalam</option>
+            <option value="Bengali">Bengali</option>
+            <option value="Marathi">Marathi</option>
+            <option value="Urdu">Urdu</option>
+            <option value="Odia">Odia</option>
+            <option value="English">English</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Genre</label>
+          <select id="genreInput" class="form-control">
+            <option value="Drama">Drama</option>
+            <option value="Action">Action</option>
+            <option value="Comedy">Comedy</option>
+            <option value="Romance">Romance</option>
+            <option value="Music">Music</option>
+            <option value="Thriller">Thriller</option>
+            <option value="Lifestyle">Lifestyle</option>
+            <option value="News">News</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Content Type</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="contentType" value="episode" checked/>
+            <span>Episode</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="contentType" value="movie"/>
+            <span>Movie</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="contentType" value="clip"/>
+            <span>Clip</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="contentType" value="promo"/>
+            <span>Promo</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div id="progressWrap" style="display:none" class="progress-section">
+        <div class="progress-label">
+          <span id="progressText">Uploading...</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="prog-bar-wrap large">
+          <div class="prog-bar" id="uploadProgress" style="width:0%"></div>
+        </div>
+        <div id="pipelineStatus" class="pipeline-status-feed"></div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-outline" onclick="cancelUpload()">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button type="button" id="uploadBtn" class="btn btn-primary" onclick="startUpload()">
+          <i class="fas fa-rocket"></i> Start Processing
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Videos List -->
+  <section class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-list"></i> My Videos
+        <span class="count-badge">{{ videos|length }}</span>
+      </h3>
+    </div>
+    <div class="video-list">
+      {% if videos %}
+        {% for v in videos %}
+        <div class="video-item" id="vitem-{{ v.id }}">
+          <div class="vi-icon">
+            {% if v.status == 'PUBLISHED' %}<i class="fab fa-youtube" style="color:#ff5050"></i>
+            {% elif v.status == 'ERROR' %}<i class="fas fa-exclamation-triangle" style="color:#ff8800"></i>
+            {% elif v.status in ['PROCESSING','VALIDATED','CLIPS_READY'] %}<i class="fas fa-spinner fa-spin" style="color:#6496ff"></i>
+            {% elif v.status == 'REVIEW_PENDING' %}<i class="fas fa-clock" style="color:#ffa500"></i>
+            {% else %}<i class="fas fa-film" style="color:rgba(255,255,255,0.3)"></i>{% endif %}
+          </div>
+          <div class="vi-body">
+            <div class="vi-title">{{ v.title or 'Untitled Video' }}</div>
+            <div class="vi-meta">
+              <span class="tag">{{ v.network }}</span>
+              <span class="tag">{{ v.language }}</span>
+              {% if v.duration %}<span>{{ v.duration|round|int }}s</span>{% endif %}
+              {% if v.resolution %}<span>{{ v.resolution }}</span>{% endif %}
+              {% set clips_count = v.clips|length if v.clips else 0 %}
+
+              {% if clips_count > 0 %}
+                <span>{{ clips_count }} clips</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="vi-right">
+            <span class="status-pill status-{{ v.status|lower if v.status else 'unknown' }}">
+              {{ v.status|replace('_',' ') if v.status else 'Unknown' }}
+            </span>
+            <div class="prog-bar-wrap small">
+              <div class="prog-bar" style="width:{{ v.processing_progress or 0 }}y"></div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <i class="fas fa-film"></i>
+          <p>No videos uploaded yet.<br/>Upload your first video to get started!</p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/ingest.js') }}"></script>
+{% endblock %}

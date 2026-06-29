@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% block title %}Pipeline{% endblock %}
+{% block page_title %}<i class="fas fa-cogs"></i> Processing Pipeline{% endblock %}
+
+{% block content %}
+<div class="pipeline-page">
+
+  <!-- Summary Bars -->
+  <div class="pipeline-summary">
+    {% set status_map = {
+      'UPLOADED':             ('fas fa-check',      '#6496ff', 'Uploaded'),
+      'VALIDATED':            ('fas fa-check-circle','#6496ff','Validated'),
+      'PROCESSING':           ('fas fa-spinner',    '#ffa500', 'Processing'),
+      'CLIPS_READY':          ('fas fa-cut',        '#ffa500', 'Clips Ready'),
+      'METADATA_GENERATED':   ('fas fa-robot',      '#ffa500', 'Metadata Done'),
+      'THUMBNAILS_GENERATED': ('fas fa-image',      '#ffa500', 'Thumbnails Done'),
+      'QA_DONE':              ('fas fa-shield-alt', '#ffa500', 'QA Done'),
+      'REVIEW_PENDING':       ('fas fa-clock',      '#ffa500', 'Review Pending'),
+      'PUBLISHED':            ('fab fa-youtube',    '#50c878', 'Published'),
+      'ERROR':                ('fas fa-exclamation-triangle','#ff5050','Error'),
+    } %}
+    {% set counts = {} %}
+    {% for v in videos %}
+      {% if v.status in counts %}
+        {% set _ = counts.update({v.status: counts[v.status] + 1}) %}
+      {% else %}
+        {% set _ = counts.update({v.status: 1}) %}
+      {% endif %}
+    {% endfor %}
+    {% for status, (icon, color, label) in status_map.items() %}
+      {% if counts.get(status, 0) > 0 %}
+      <div class="ps-chip">
+        <i class="{{ icon }}" data-color="{{ color }}"></i>
+        <span class="ps-count">{{ counts[status] }}</span>
+        <span class="ps-label">{{ label }}</span>
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- Videos Table -->
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-list"></i> All Source Videos
+        <span class="count-badge">{{ videos|length }}</span>
+      </h3>
+      <a href="{{ url_for('ingest') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-upload"></i> Upload New
+      </a>
+    </div>
+
+    {% if videos %}
+    <div class="pipeline-table-wrap">
+      <table class="pipeline-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Network</th>
+            <th>Language</th>
+            <th>Duration</th>
+            <th>Clips</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Uploaded</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in videos %}
+          <tr class="pipeline-row" id="prow-{{ v.id }}" onclick="toggleDetails('{{ v.id }}')">
+            <td class="td-title">
+              <div class="row-title">{{ v.title[:50] }}</div>
+              <div class="row-original">{{ v.original_name or v.filename }}</div>
+            </td>
+            <td><span class="tag">{{ v.network }}</span></td>
+            <td>{{ v.language }}</td>
+            <td>{% if v.duration %}{{ '%.0f'|format(v.duration) }}s{% else %}—{% endif %}</td>
+            <td>{{ v.clips.count() if v.clips else 0 }}</td>
+            <td>
+              <span class="status-pill status-{{ v.status.lower()[:10] }}">
+                {{ v.status.replace('_',' ') }}
+              </span>
+            </td>
+            <td class="td-progress">
+              <div class="prog-bar-wrap small">
+                <div class="prog-bar" id="pb-{{ v.id }}" data-progress="{{ v.processing_progress or 0 }}"></div>
+              </div>
+              <span id="ppct-{{ v.id }}">{{ v.processing_progress or 0 }}%</span>
+            </td>
+            <td class="td-date">{{ v.created_at.strftime('%b %d') }}</td>
+          </tr>
+          <tr class="details-row" id="details-{{ v.id }}" style="display:none">
+            <td colspan="8">
+              <div class="details-inner">
+                {% if v.resolution %}<div class="detail-item"><strong>Resolution:</strong> {{ v.resolution }}</div>{% endif %}
+                {% if v.fps %}<div class="detail-item"><strong>FPS:</strong> {{ '%.1f'|format(v.fps) }}</div>{% endif %}
+                {% if v.error_message %}<div class="detail-item error-msg"><strong>Error:</strong> {{ v.error_message }}</div>{% endif %}
+                {% if v.clips %}
+                  <div class="clips-mini">
+                    {% for c in v.clips %}
+                      <span class="clip-mini-chip status-{{ c.status.lower()[:10] }}">
+                        {{ c.clip_type }}: {{ '%.0f'|format(c.duration) }}s
+                      </span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-film"></i>
+        <p>No videos yet. <a href="{{ url_for('ingest') }}">Upload your first video →</a></p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleDetails(id) {
+  const row = document.getElementById(`details-${id}`);
+  if (row) {
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+  }
+}
+
+function applyProgressBar(el, value) {
+  if (!el) return;
+  const progress = Math.max(0, Math.min(100, Number(value) || 0));
+  el.style.width = `${progress}%`;
+  el.setAttribute('data-progress', String(progress));
+}
+
+function applyInitialStyles() {
+  document.querySelectorAll('[data-color]').forEach((el) => {
+    el.style.color = el.getAttribute('data-color');
+  });
+  document.querySelectorAll('[data-progress]').forEach((el) => {
+    applyProgressBar(el, el.getAttribute('data-progress'));
+  });
+}
+
+// Auto-poll for processing videos
+const processingIds = JSON.parse("{{ videos | selectattr('status', 'in', ['UPLOADED', 'VALIDATED', 'PROCESSING', 'CLIPS_READY', 'METADATA_GENERATED', 'THUMBNAILS_GENERATED', 'QA_DONE']) | map(attribute='id') | list | tojson }}");
+
+async function pollStatuses() {
+  for (const id of processingIds) {
+    try {
+      const r = await fetch(`/api/video/${id}/status`);
+      const d = await r.json();
+      const pb = document.getElementById(`pb-${id}`);
+      const pct = document.getElementById(`ppct-${id}`);
+      if (pb) applyProgressBar(pb, d.progress || 0);
+      if (pct) pct.textContent = `${d.progress || 0}%`;
+    } catch (e) {}
+  }
+  if (processingIds.length > 0) setTimeout(pollStatuses, 5000);
+}
+
+document.addEventListener('DOMContentLoaded', applyInitialStyles);
+if (processingIds.length > 0) setTimeout(pollStatuses, 5000);
+</script>
+{% endblock %}

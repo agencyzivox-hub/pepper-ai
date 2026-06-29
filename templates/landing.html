@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pepper AI — YouTube Content Pipeline</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    body{margin:0;background:#0a0a0f;color:#fff;font-family:'Inter',system-ui,sans-serif;overflow-x:hidden}
+    .landing-hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;background:radial-gradient(ellipse at 50% 0%,rgba(255,80,80,0.15) 0%,transparent 70%)}
+    .hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,80,80,0.15);border:1px solid rgba(255,80,80,0.3);border-radius:100px;padding:6px 16px;font-size:13px;color:#ff5050;margin-bottom:24px}
+    .hero-title{font-size:clamp(2.5rem,6vw,5rem);font-weight:800;line-height:1.1;margin:0 0 20px;letter-spacing:-2px}
+    .hero-title span{background:linear-gradient(135deg,#ff5050,#ff9500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .hero-subtitle{font-size:1.2rem;color:rgba(255,255,255,0.6);max-width:600px;margin:0 auto 40px;line-height:1.7}
+    .hero-cta{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+    .btn-hero{display:inline-flex;align-items:center;gap:10px;padding:16px 32px;border-radius:12px;font-size:1rem;font-weight:600;text-decoration:none;transition:all .2s}
+    .btn-hero-primary{background:linear-gradient(135deg,#ff5050,#ff9500);color:#fff;box-shadow:0 8px 30px rgba(255,80,80,0.4)}
+    .btn-hero-primary:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(255,80,80,0.5)}
+    .btn-hero-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);color:#fff}
+    .btn-hero-ghost:hover{background:rgba(255,255,255,0.1)}
+    .pipeline-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1100px;width:100%;margin:80px auto 60px;padding:0 20px}
+    .step-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;text-align:left;transition:all .3s;position:relative;overflow:hidden}
+    .step-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#ff5050,#ff9500)}
+    .step-card:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,80,80,0.3);transform:translateY(-4px)}
+    .step-num{font-size:2rem;font-weight:800;color:rgba(255,80,80,0.3);margin-bottom:12px}
+    .step-icon{font-size:1.5rem;margin-bottom:12px}
+    .step-title{font-size:1rem;font-weight:600;margin-bottom:8px}
+    .step-desc{font-size:.85rem;color:rgba(255,255,255,0.5);line-height:1.6}
+    .stats-row{display:flex;gap:40px;justify-content:center;flex-wrap:wrap;margin:40px 0;padding:0 20px}
+    .stat-item{text-align:center}
+    .stat-num{font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,#ff5050,#ff9500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .stat-label{font-size:.85rem;color:rgba(255,255,255,0.4);margin-top:4px}
+    .landing-footer{text-align:center;padding:40px 20px;color:rgba(255,255,255,0.25);font-size:.85rem;border-top:1px solid rgba(255,255,255,0.06)}
+    .brand{font-size:2rem;font-weight:800;margin-bottom:60px}
+    .brand span{color:#ff5050}
+    .networks-row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:16px 0 40px}
+    .net-badge{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 20px;font-size:.85rem;color:rgba(255,255,255,0.6)}
+  </style>
+</head>
+<body>
+<div class="landing-hero">
+  <div class="brand">🌶️ Pepper<span>AI</span></div>
+
+  <div class="hero-badge"><i class="fas fa-bolt"></i> Powered by Gemini AI + FFmpeg</div>
+
+  <h1 class="hero-title">
+    AI-Powered YouTube<br/>
+    <span>Content Pipeline</span>
+  </h1>
+
+  <p class="hero-subtitle">
+    Upload raw footage from Zee & Sun networks. Pepper AI automatically clips, generates SEO metadata,
+    creates branded thumbnails, runs QA, and publishes to YOUR YouTube channel.
+  </p>
+
+  <div class="networks-row">
+    <span class="net-badge"><i class="fas fa-tv"></i> Zee TV</span>
+    <span class="net-badge"><i class="fas fa-tv"></i> Zee Cinema</span>
+    <span class="net-badge"><i class="fas fa-tv"></i> Sun TV</span>
+    <span class="net-badge"><i class="fas fa-tv"></i> Sun Music</span>
+    <span class="net-badge"><i class="fas fa-tv"></i> Zee Telugu</span>
+    <span class="net-badge"><i class="fas fa-tv"></i> & more</span>
+  </div>
+
+  <div class="hero-cta">
+    <a href="{{ url_for('login') }}" class="btn-hero btn-hero-primary">
+      <i class="fab fa-google"></i> Sign In with Google
+    </a>
+    <a href="#pipeline" class="btn-hero btn-hero-ghost">
+      <i class="fas fa-play"></i> See How It Works
+    </a>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-item">
+      <div class="stat-num">9</div>
+      <div class="stat-label">Pipeline Stages</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">95%</div>
+      <div class="stat-label">Automated</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">3x</div>
+      <div class="stat-label">Content Types</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">∞</div>
+      <div class="stat-label">Users Supported</div>
+    </div>
+  </div>
+</div>
+
+<div id="pipeline" class="pipeline-steps">
+  <div class="step-card">
+    <div class="step-num">01</div>
+    <div class="step-icon">📥</div>
+    <div class="step-title">Ingest Content</div>
+    <div class="step-desc">Upload raw video files up to 10GB. MP4, MOV, MKV, AVI supported. Drag & drop interface.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-num">02</div>
+    <div class="step-icon">📡</div>
+    <div class="step-title">Channel Setup</div>
+    <div class="step-desc">Link your YouTube channel via Google OAuth. Each user's content goes to their own channel.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-num">03</div>
+    <div class="step-icon">✂️</div>
+    <div class="step-title">Smart Clipping</div>
+    <div class="step-desc">FFmpeg scene detection creates Shorts (15-60s), Medium (3-5min), and Longform (10-30min) clips.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-num">04</div>
+    <div class="step-icon">🤖</div>
+    <div class="step-title">AI Metadata</div>
+    <div class="step-desc">Gemini 1.5 Flash generates SEO titles (55-60 chars), descriptions (200-400 words), and 30 tags.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-num">05</div>
+    <div class="step-icon">🖼️</div>
+    <div class="step-title">Branded Thumbnails</div>
+    <div class="step-desc">Pillow generates 3 branded thumbnail variants per clip with genre-specific color schemes.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-num">06</div>
+    <div class="step-icon">✅</div>
+    <div class="step-title">Quality Assurance</div>
+    <div class="step-desc">100-point automated QA: video quality (30pts) + metadata (30pts) + thumbnail (20pts) + relevance (20pts).</div>
+  </div>
+  <div class="step-card">
+    <div class="step-num">07</div>
+    <div class="step-icon">👁️</div>
+    <div class="step-title">Manual Review</div>
+    <div class="step-desc">Review queue with clip preview, thumbnail picker, metadata editor. Approve or reject with one click.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-num">08</div>
+    <div class="step-icon">📊</div>
+    <div class="step-title">CMS Management</div>
+    <div class="step-desc">Organize clips by channel. Schedule publish times or publish instantly to YouTube.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-num">09</div>
+    <div class="step-icon">🚀</div>
+    <div class="step-title">YouTube Publish</div>
+    <div class="step-desc">Publishes to each user's own YouTube channel using their personal Google account credentials.</div>
+  </div>
+</div>
+
+<div class="landing-footer">
+  © 2024 Pepper AI — Built for Zee & Sun Networks | Powered by Google Gemini + FFmpeg + Python
+</div>
+</body>
+</html>

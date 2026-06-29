@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}<i class="fas fa-tachometer-alt"></i> Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+
+  <!-- KPI Cards -->
+  <section class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(255,80,80,0.15);color:#ff5050">
+        <i class="fas fa-film"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ stats.total_sources }}</div>
+        <div class="kpi-label">Source Videos</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(100,150,255,0.15);color:#6496ff">
+        <i class="fas fa-cut"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ stats.total_clips }}</div>
+        <div class="kpi-label">Total Clips</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(255,165,0,0.15);color:#ffa500">
+        <i class="fas fa-clock"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ stats.pending_review }}</div>
+        <div class="kpi-label">Pending Review</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(80,200,120,0.15);color:#50c878">
+        <i class="fab fa-youtube"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ stats.published }}</div>
+        <div class="kpi-label">Published</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(150,100,255,0.15);color:#9664ff">
+        <i class="fas fa-eye"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ '{:,}'.format(stats.total_views) }}</div>
+        <div class="kpi-label">Total Views</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:rgba(255,80,80,0.15);color:#ff5050">
+        <i class="fas fa-cogs"></i>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ stats.processing }}</div>
+        <div class="kpi-label">Processing</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pipeline Stage Visual -->
+  <section class="card pipeline-visual-card">
+    <div class="card-header">
+      <h3><i class="fas fa-project-diagram"></i> Pipeline Stages</h3>
+    </div>
+    <div class="pipeline-stages">
+      {% set stages = [
+        ('INGEST',     'fas fa-upload',       'Ingest'),
+        ('CHANNEL',    'fab fa-youtube',       'Channel'),
+        ('CLIPPING',   'fas fa-cut',           'Clipping'),
+        ('METADATA',   'fas fa-robot',         'AI Metadata'),
+        ('THUMBNAILS', 'fas fa-image',         'Thumbnails'),
+        ('QA',         'fas fa-shield-alt',    'QA Check'),
+        ('REVIEW',     'fas fa-eye',           'Review'),
+        ('CMS',        'fas fa-database',      'CMS'),
+        ('PUBLISH',    'fas fa-paper-plane',   'Publish'),
+      ] %}
+      {% for stage_id, icon, label in stages %}
+        <div class="pipeline-stage {% if loop.index <= 3 %}stage-done{% elif loop.index == 4 %}stage-active{% endif %}">
+          <div class="stage-circle"><i class="{{ icon }}"></i></div>
+          <div class="stage-label">{{ label }}</div>
+        </div>
+        {% if not loop.last %}<div class="stage-arrow"><i class="fas fa-chevron-right"></i></div>{% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- In-Progress Videos -->
+  <section class="card" style="grid-column:1/-1">
+    <div class="card-header">
+      <h3><i class="fas fa-spinner fa-spin"></i> Currently Processing</h3>
+      <a href="{{ url_for('pipeline') }}" class="card-link">View All</a>
+    </div>
+    {% if in_progress %}
+      <div class="processing-list">
+        {% for v in in_progress %}
+        <div class="processing-item" id="vid-{{ v.id }}">
+          <div class="proc-info">
+            <div class="proc-title">{{ v.title }}</div>
+            <div class="proc-meta">
+              <span class="tag">{{ v.network }}</span>
+              <span class="tag">{{ v.language }}</span>
+              <span class="tag">{{ v.genre }}</span>
+              {% if v.duration %}<span>{{ '%.0f'|format(v.duration) }}s</span>{% endif %}
+            </div>
+          </div>
+          <div class="proc-status-wrap">
+            <span class="status-pill status-{{ v.status.lower() }}">{{ v.status.replace('_',' ') }}</span>
+            <div class="prog-bar-wrap">
+              <div class="prog-bar" style="width:{{ v.processing_progress or 0 }}%"></div>
+            </div>
+            <span class="proc-pct">{{ v.processing_progress or 0 }}%</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-check-circle" style="color:#50c878"></i>
+        <p>No videos currently processing. <a href="{{ url_for('ingest') }}">Upload one →</a></p>
+      </div>
+    {% endif %}
+  </section>
+
+  <!-- Quick Actions + Activity Feed -->
+  <section class="card">
+    <div class="card-header"><h3><i class="fas fa-bolt"></i> Quick Actions</h3></div>
+    <div class="quick-actions">
+      <a href="{{ url_for('ingest') }}" class="qa-btn">
+        <i class="fas fa-upload"></i>
+        <span>Upload Video</span>
+      </a>
+      <a href="{{ url_for('channels') }}" class="qa-btn">
+        <i class="fab fa-youtube"></i>
+        <span>Manage Channels</span>
+      </a>
+      <a href="{{ url_for('review') }}" class="qa-btn">
+        <i class="fas fa-check-double"></i>
+        <span>Review Clips
+          {% if stats.pending_review > 0 %}
+            <span class="inline-badge">{{ stats.pending_review }}</span>
+          {% endif %}
+        </span>
+      </a>
+      <a href="{{ url_for('publish') }}" class="qa-btn">
+        <i class="fas fa-paper-plane"></i>
+        <span>Publish to YouTube</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-history"></i> Recent Activity</h3>
+    </div>
+    <div class="activity-feed">
+      {% if recent %}
+        {% for evt in recent %}
+        <div class="activity-item">
+          <div class="activity-dot dot-{{ evt.event_type.lower()[:6] }}"></div>
+          <div class="activity-body">
+            <div class="activity-msg">{{ evt.message }}</div>
+            <div class="activity-time">{{ evt.created_at.strftime('%b %d, %H:%M') }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <i class="fas fa-clock"></i>
+          <p>No activity yet. Upload your first video!</p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh if any video is processing
+const processing = {{ stats.processing }};
+if (processing > 0) {
+  setTimeout(() => location.reload(), 15000);
+}
+</script>
+{% endblock %}

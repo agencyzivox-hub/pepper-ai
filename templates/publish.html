@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block title %}Publish{% endblock %}
+{% block page_title %}<i class="fas fa-paper-plane"></i> Publish to YouTube{% endblock %}
+
+{% block content %}
+<div class="publish-page">
+
+  <!-- Tab Header -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('approved', this)">
+      <i class="fas fa-check"></i> Approved
+      <span class="tab-count">{{ clips | selectattr('status','equalto','APPROVED') | list | length }}</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('scheduled', this)">
+      <i class="fas fa-calendar"></i> Scheduled
+      <span class="tab-count">{{ clips | selectattr('status','equalto','SCHEDULED') | list | length }}</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('published', this)">
+      <i class="fab fa-youtube"></i> Published
+      <span class="tab-count">{{ clips | selectattr('status','equalto','PUBLISHED') | list | length }}</span>
+    </button>
+  </div>
+
+  <!-- Approved Tab -->
+  <div class="tab-content active" id="tab-approved">
+    {% set approved = clips | selectattr('status','equalto','APPROVED') | list %}
+    {% if approved %}
+      <div class="publish-grid">
+        {% for clip in approved %}
+        <div class="publish-card" id="pcard-{{ clip.id }}">
+          <div class="publish-thumb">
+            {% set thumbs = clip.get_thumbnail_variants() %}
+            {% if thumbs %}
+              <img src="/thumbnails/{{ thumbs[clip.selected_thumbnail or 0].split('/')[-1] }}"
+                   alt="thumb" onerror="this.style.display='none'"/>
+            {% else %}
+              <div class="thumb-fallback"><i class="fas fa-image"></i></div>
+            {% endif %}
+            <span class="clip-type-badge badge-{{ clip.clip_type }}">{{ clip.clip_type.upper() }}</span>
+          </div>
+          <div class="publish-info">
+            <div class="pub-title">{{ clip.final_title or clip.ai_title or 'Untitled' }}</div>
+            <div class="pub-meta">
+              <span>{{ '%.0f'|format(clip.duration or 0) }}s</span>
+              <span class="qa-badge">QA: {{ clip.qa_total_score }}/100</span>
+            </div>
+            <div class="pub-desc-preview">
+              {{ (clip.final_description or clip.ai_description or '')[:100] }}...
+            </div>
+          </div>
+          <div class="publish-actions">
+            <button class="btn btn-primary btn-sm pub-btn" onclick="publishNow({{ clip.id }}, this)">
+              <i class="fab fa-youtube"></i> Publish Now
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="openSchedule({{ clip.id }})">
+              <i class="fas fa-calendar"></i> Schedule
+            </button>
+          </div>
+          <div class="pub-status" id="pubstatus-{{ clip.id }}"></div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-check-circle"></i>
+        <p>No approved clips yet.<br/>
+        <a href="{{ url_for('review') }}">Review clips first →</a></p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Scheduled Tab -->
+  <div class="tab-content" id="tab-scheduled">
+    {% set scheduled = clips | selectattr('status','equalto','SCHEDULED') | list %}
+    {% if scheduled %}
+      <div class="publish-grid">
+        {% for clip in scheduled %}
+        <div class="publish-card">
+          <div class="publish-thumb">
+            {% set thumbs = clip.get_thumbnail_variants() %}
+            {% if thumbs %}
+              <img src="/thumbnails/{{ thumbs[0].split('/')[-1] }}" alt="thumb" onerror="this.style.display='none'"/>
+            {% else %}
+              <div class="thumb-fallback"><i class="fas fa-calendar"></i></div>
+            {% endif %}
+          </div>
+          <div class="publish-info">
+            <div class="pub-title">{{ clip.final_title or clip.ai_title }}</div>
+            <div class="pub-meta scheduled-time">
+              <i class="fas fa-clock"></i>
+              Scheduled: {{ clip.scheduled_at.strftime('%b %d, %Y %H:%M') if clip.scheduled_at else 'Unknown' }}
+            </div>
+          </div>
+          <div class="publish-actions">
+            <button class="btn btn-primary btn-sm" onclick="publishNow({{ clip.id }}, this)">
+              <i class="fas fa-bolt"></i> Publish Now
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-calendar"></i>
+        <p>No scheduled clips.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Published Tab -->
+  <div class="tab-content" id="tab-published">
+    {% set published = clips | selectattr('status','equalto','PUBLISHED') | list %}
+    {% if published %}
+      <div class="publish-grid">
+        {% for clip in published %}
+        <div class="publish-card published-card">
+          <div class="publish-thumb">
+            {% set thumbs = clip.get_thumbnail_variants() %}
+            {% if thumbs %}
+              <img src="/thumbnails/{{ thumbs[0].split('/')[-1] }}" alt="thumb" onerror="this.style.display='none'"/>
+            {% else %}
+              <div class="thumb-fallback pub-done"><i class="fab fa-youtube"></i></div>
+            {% endif %}
+            <div class="published-overlay"><i class="fas fa-check-circle"></i> Published</div>
+          </div>
+          <div class="publish-info">
+            <div class="pub-title">{{ clip.final_title or clip.ai_title }}</div>
+            <div class="pub-meta">
+              <span><i class="fas fa-eye"></i> {{ clip.yt_views or 0 }} views</span>
+              <span><i class="fas fa-heart"></i> {{ clip.yt_likes or 0 }} likes</span>
+            </div>
+            {% if clip.published_at %}
+              <div class="pub-date">Published {{ clip.published_at.strftime('%b %d, %Y') }}</div>
+            {% endif %}
+          </div>
+          {% if clip.yt_url %}
+          <div class="publish-actions">
+            <a href="{{ clip.yt_url }}" target="_blank" class="btn btn-sm btn-outline">
+              <i class="fas fa-external-link-alt"></i> View on YouTube
+            </a>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fab fa-youtube"></i>
+        <p>Nothing published yet.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Schedule Modal -->
+<div class="modal-overlay" id="scheduleModal" onclick="if(event.target===this)closeModal('scheduleModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fas fa-calendar"></i> Schedule Publish</h3>
+      <button class="modal-close" onclick="closeModal('scheduleModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Publish Date & Time</label>
+        <input type="datetime-local" id="scheduleInput" class="form-control"/>
+      </div>
+      <p class="form-hint">The clip will be published to YouTube at the selected time.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('scheduleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSchedule()">
+        <i class="fas fa-calendar-check"></i> Schedule
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/publish.js') }}"></script>
+{% endblock %}
