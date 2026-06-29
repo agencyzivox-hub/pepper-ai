@@ -8,14 +8,14 @@ nixPkgs = [
   "dejavu_fonts",
   "freetype",
   "libjpeg",
-  "zlib",
+  "zlib"
 ]
 
 [phases.install]
 cmds = [
-  "pip install --upgrade pip",
-  "pip install -r requirements.txt"
+  "python -m pip install --upgrade pip",
+  "python -m pip install -r requirements.txt"
 ]
 
 [start]
-cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 300 --worker-class sync --max-requests 1000 --preload"
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 300 --preload"
