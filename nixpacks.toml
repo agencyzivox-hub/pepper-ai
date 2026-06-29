@@ -14,10 +14,5 @@ nixPkgs = [
   "zlib"
 ]
 
-[phases.install]
-cmds = [
-  "pip install --no-cache-dir --prefix=$NIXPACKS_PATH -r requirements.txt"
-]
-
 [start]
 cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 300 --preload"
